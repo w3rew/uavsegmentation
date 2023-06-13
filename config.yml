@@ -1,0 +1,22 @@
+model:
+  decoder: 'unet++'
+  params:
+    encoder_name: 'resnet34'
+    encoder_weights: 'imagenet'
+    in_channels: 3
+    classes: 8
+dataloader:
+  batch_size: 8
+  shuffle: True
+dataset:
+  uavid:
+    mean: [121.74305257, 126.25519926, 115.68233945]
+    std: [60.41908526, 56.56012129, 60.92941576]
+    shape: [1088, 2048]
+      # shape: [2176, 4096]
+train:
+  epochs: 100
+  optim:
+    name: 'adam'
+    params:
+      lr: 0.001
