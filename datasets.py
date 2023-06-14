@@ -7,9 +7,9 @@ import cv2
 from pathlib import Path
 import albumentations as A
 import albumentations.pytorch.transforms as T
+import logging
 
-def denormalize(batch, mean, std):
-    return batch * std[None, None, ...] + mean[None, None, ...]
+logger = logging.getLogger('drone_seg')
 
 class LoaderTrainVal:
     def __init__(self, dataset, **kwargs):
@@ -50,7 +50,9 @@ class DatasetTrainVal:
         train_dir = dataset_path / dataset.TRAIN_DIR
         val_dir = dataset_path / dataset.VAL_DIR
         if mean is None or std is None:
+            logger.warning('Mean and std are not present in config; calculating from the dataset')
             mean, std = dataset.calculate_mean_std(dataset_path)
+            logger.info(f'Calculated {mean=}, {std=}')
         self.mean = mean
         self.std = std
         self.train = dataset(train_dir, self.mean, self.std, transform, **kwargs)
@@ -75,10 +77,10 @@ class UAVid(Dataset):
         self.mean = mean
         self.std = std
         self.shape = shape
-        self.transform = [A.Normalize(self.mean, self.std), A.Resize(*self.shape)]
+        self.transform = [A.RandomCrop(*self.shape, always_apply=True)]
         if transform is not None:
             self.transform.append(transform)
-        self.transform.append(T.ToTensorV2())
+        self.transform += [A.Normalize(self.mean, self.std), T.ToTensorV2()]
         self.transform = A.Compose(self.transform)
 
     def __len__(self):
@@ -86,6 +88,7 @@ class UAVid(Dataset):
 
     def __getitem__(self, idx):
         img = imread(self.img_path / self.files[idx])
+        logger.debug(f'Before transform: {img.min()}, {img.max()}')
         mask = cv2.imread(str(self.mask_path / self.files[idx]), cv2.IMREAD_UNCHANGED)
 
         tmp = self.transform(image=img, mask=mask)

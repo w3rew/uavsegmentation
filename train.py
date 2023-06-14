@@ -5,26 +5,26 @@ from torch.utils.data import Dataset, DataLoader
 import yaml
 import architecture
 import datasets
-import matplotlib.pyplot as plt
 import torch.nn as nn
 from tqdm import tqdm
 import albumentations as A
 import logging
 import cv2
 import numpy as np
-from segmentation_models_pytorch.encoders import get_preprocessing_fn
+from auxiliary import show_augmentations
 
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-train_transform = A.Compose([A.HorizontalFlip(), A.VerticalFlip(),
-                     A.GridDistortion(p=0.2), A.RandomBrightnessContrast((0, 0.5), (0, 0.5)),
-                     A.GaussNoise()])
+train_transform = A.Compose([A.HorizontalFlip(), A.GridDistortion(p=0.2),
+                             A.RandomBrightnessContrast(),
+                             A.GaussNoise()])
+logger = logging.getLogger('drone_seg')
 
 def to_classes(out):
     classes = np.argmax(out, axis=0)
     return classes
 
 def val_epoch(model, loader, criterion, vis_dir):
-    logging.info(f'Starting validation')
+    logger.info(f'Starting validation')
     epoch_loss = 0.0
     c = 0
     model.eval()
@@ -43,6 +43,7 @@ def val_epoch(model, loader, criterion, vis_dir):
         epoch_loss /= c
 
     return epoch_loss
+
 
 def train_epoch(model, loader, optim, criterion):
     model.train()
@@ -65,7 +66,7 @@ def train_epoch(model, loader, optim, criterion):
 
 
 def train(model, cfg, dataset_name, dataset_path, outdir):
-    logging.info('Starting model training')
+    logger.info('Starting model training')
     match dataset_name:
         case 'uavid':
             dataset_cls = datasets.UAVid
@@ -97,7 +98,7 @@ def train(model, cfg, dataset_name, dataset_path, outdir):
         train_loss = train_epoch(model, dataloader, optim, criterion)
         if epoch % 5 == 0:
             val_loss = val_epoch(model, dataloader, criterion, vis_dir)
-            logging.info(f'Validation loss {val_loss}')
+            logger.info(f'Validation loss {val_loss}')
             if val_loss < best_val:
                 best_val = val_loss
                 torch.save(model.state_dict(), outdir / 'best.pth')
@@ -107,7 +108,8 @@ def train(model, cfg, dataset_name, dataset_path, outdir):
 
 
 def main(args):
-    logging.basicConfig(level=logging.INFO)
+    logger.setLevel(logging.DEBUG)
+    logger.addHandler(logging.StreamHandler())
     with open(args.config, 'r') as f:
         cfg = yaml.safe_load(f)
 
