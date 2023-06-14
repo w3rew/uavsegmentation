@@ -1,0 +1,3 @@
+[submodule "UAVidToolKit"]
+	path = UAVidToolKit
+	url = https://github.com/YeLyuUT/UAVidToolKit.git
