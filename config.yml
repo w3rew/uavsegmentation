@@ -1,5 +1,5 @@
 model:
-  decoder: 'unet++'
+  decoder: 'unet'
   params:
     encoder_name: 'resnet34'
     encoder_weights: 'imagenet'
@@ -15,7 +15,7 @@ dataset:
     shape: [1088, 2048]
       # shape: [2176, 4096]
 train:
-  epochs: 100
+  epochs: 60
   optim:
     name: 'adam'
     params:

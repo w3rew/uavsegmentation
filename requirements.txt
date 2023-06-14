@@ -2,3 +2,5 @@ segmentation-models-pytorch
 torch
 pyyaml
 tqdm
+albumentations
+matplotlib

@@ -1,6 +1,5 @@
 import segmentation_models_pytorch as smp
 
-
 decoders = {
         'unet': smp.Unet,
         'unet++': smp.UnetPlusPlus

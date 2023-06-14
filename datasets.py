@@ -8,6 +8,9 @@ from pathlib import Path
 import albumentations as A
 import albumentations.pytorch.transforms as T
 
+def denormalize(batch, mean, std):
+    return batch * std[None, None, ...] + mean[None, None, ...]
+
 class LoaderTrainVal:
     def __init__(self, dataset, **kwargs):
         self.train = DataLoader(dataset.train, **kwargs)
