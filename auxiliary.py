@@ -21,4 +21,3 @@ def show_augmentations(loader):
         mask_color = CT.inverse_transform(mask)
         plt.imshow(np.hstack((photo, mask_color)))
         plt.show()
-

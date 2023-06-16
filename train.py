@@ -69,7 +69,7 @@ def train(model, cfg, dataset_name, dataset_path, outdir):
     logger.info('Starting model training')
     match dataset_name:
         case 'uavid':
-            dataset_cls = datasets.UAVid
+            dataset_cls = datasets.UAVidCropped
         case 'semanticdrone':
             dataset_cls = datasets.SemanticDrone
         case _:

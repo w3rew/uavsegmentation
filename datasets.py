@@ -59,9 +59,9 @@ class DatasetTrainVal:
         self.val = dataset(val_dir, self.mean, self.std, transform=None, **kwargs)
 
 
-class UAVid(Dataset):
-    TRAIN_DIR = 'uavid_train/seq1'
-    VAL_DIR = 'uavid_val/seq16'
+class UAVidCropped(Dataset):
+    TRAIN_DIR = 'train/seq1'
+    VAL_DIR = 'val/seq16'
 
     @staticmethod
     def calculate_mean_std(dataset_path, progress=True):
@@ -74,10 +74,10 @@ class UAVid(Dataset):
         self.img_path = self.path / 'Images'
         self.mask_path = self.path / 'TrainId'
         self.files = [file.name for file in self.img_path.iterdir()]
-        self.mean = mean
-        self.std = std
+        self.mean = [i / 255 for i in mean]
+        self.std = [i / 255 for i in std]
         self.shape = shape
-        self.transform = [A.RandomCrop(*self.shape, always_apply=True)]
+        self.transform = []
         if transform is not None:
             self.transform.append(transform)
         self.transform += [A.Normalize(self.mean, self.std), T.ToTensorV2()]
