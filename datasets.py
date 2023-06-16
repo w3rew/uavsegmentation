@@ -88,7 +88,6 @@ class UAVid(Dataset):
 
     def __getitem__(self, idx):
         img = imread(self.img_path / self.files[idx])
-        logger.debug(f'Before transform: {img.min()}, {img.max()}')
         mask = cv2.imread(str(self.mask_path / self.files[idx]), cv2.IMREAD_UNCHANGED)
 
         tmp = self.transform(image=img, mask=mask)
