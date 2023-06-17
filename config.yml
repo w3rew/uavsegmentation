@@ -5,6 +5,7 @@ model:
     encoder_weights: 'imagenet'
     in_channels: 3
     classes: 8
+  shape: [1056, 1920]
 dataloader:
   batch_size: 8
   shuffle: True
@@ -13,7 +14,6 @@ dataset:
   uavid:
     mean: [121.74305257, 126.25519926, 115.68233945]
     std: [60.41908526, 56.56012129, 60.92941576]
-    shape: [1056, 1920]
 train:
   epochs: 60
   optim:

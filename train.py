@@ -11,13 +11,12 @@ import albumentations as A
 import logging
 import cv2
 import numpy as np
-from auxiliary import show_augmentations
+from auxiliary import show_augmentations, logger
 
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 train_transform = A.Compose([A.HorizontalFlip(), A.GridDistortion(p=0.2),
                              A.RandomBrightnessContrast(),
                              A.GaussNoise()])
-logger = logging.getLogger('drone_seg')
 
 def to_classes(out):
     classes = np.argmax(out, axis=0)
@@ -75,7 +74,9 @@ def train(model, cfg, dataset_name, dataset_path, outdir):
         case _:
             raise ValueError('Wrong dataset name')
 
-    dataset = datasets.DatasetTrainVal(dataset_cls, dataset_path, transform=train_transform, **cfg['dataset'][dataset_name])
+    dataset = datasets.DatasetTrainVal(dataset_cls, dataset_path, transform=train_transform,
+                                       shape=cfg['model']['shape'],
+                                       **cfg['dataset'][dataset_name])
     dataloader = datasets.LoaderTrainVal(dataset, **cfg['dataloader'])
 
     criterion = nn.CrossEntropyLoss()
@@ -111,8 +112,8 @@ def train(model, cfg, dataset_name, dataset_path, outdir):
 
 
 def main(args):
-    logger.setLevel(logging.DEBUG)
-    logger.addHandler(logging.StreamHandler())
+    if args.debug:
+        logger.setLevel(logging.DEBUG)
     with open(args.config, 'r') as f:
         cfg = yaml.safe_load(f)
 
@@ -143,6 +144,8 @@ if __name__ == '__main__':
                         help='Dataset to train on')
     parser.add_argument('--dataset_path', type=Path, required=True,
                         help='Path to dataset directory')
+    parser.add_argument('-d', dest='debug', action='store_true',
+                        help='Debug flag')
 
     args = parser.parse_args()
 

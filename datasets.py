@@ -8,18 +8,12 @@ from pathlib import Path
 import albumentations as A
 import albumentations.pytorch.transforms as T
 import logging
-
-logger = logging.getLogger('drone_seg')
+from auxiliary import imread, logger
 
 class LoaderTrainVal:
     def __init__(self, dataset, **kwargs):
         self.train = DataLoader(dataset.train, **kwargs)
         self.val = DataLoader(dataset.val, batch_size=1, shuffle=False)
-
-def imread(img_path):
-    img = cv2.imread(str(img_path), cv2.IMREAD_UNCHANGED)
-    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-    return img
 
 def calculate_mean_std(imgs, progress=False):
     sums = np.zeros(3, dtype=np.float64)
@@ -60,8 +54,8 @@ class DatasetTrainVal:
 
 
 class UAVidCropped(Dataset):
-    TRAIN_DIR = 'train/seq1'
-    VAL_DIR = 'val/seq16'
+    TRAIN_DIR = 'uavid_train'
+    VAL_DIR = 'uavid_val'
 
     @staticmethod
     def calculate_mean_std(dataset_path, progress=True):
@@ -69,11 +63,24 @@ class UAVidCropped(Dataset):
         return calculate_mean_std([file for dir_ in dirs for file in (dataset_path / dir_ / 'Images').iterdir()],
                                   progress)
 
+    def _get_images(self, dir_):
+        files = []
+        seqs = dir_.glob('seq*')
+
+        for seq in seqs:
+            files += list((seq / 'Images').iterdir())
+
+        return files
+
+    def _lbl_from_img(self, img_path):
+        name = img_path.name
+
+        return img_path.parent.parent / 'TrainId' / name
+
     def __init__(self, path, mean, std, transform=None, shape=None, **kwargs):
         self.path = Path(path)
-        self.img_path = self.path / 'Images'
+        self.files = self._get_images(self.path)
         self.mask_path = self.path / 'TrainId'
-        self.files = [file.name for file in self.img_path.iterdir()]
         self.mean = [i / 255 for i in mean]
         self.std = [i / 255 for i in std]
         self.shape = shape
@@ -87,11 +94,13 @@ class UAVidCropped(Dataset):
         return len(self.files)
 
     def __getitem__(self, idx):
-        img = imread(self.img_path / self.files[idx])
-        mask = cv2.imread(str(self.mask_path / self.files[idx]), cv2.IMREAD_UNCHANGED)
+        file = self.files[idx]
+        mask_path = self._lbl_from_img(file)
+        img = imread(file)
+        mask = cv2.imread(str(mask_path), cv2.IMREAD_UNCHANGED)
 
         tmp = self.transform(image=img, mask=mask)
         img, mask = tmp['image'], tmp['mask']
 
 
-        return self.files[idx], img, mask[None, ...].long()
+        return file.name, img, mask[None, ...].long()

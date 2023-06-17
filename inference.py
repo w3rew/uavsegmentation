@@ -2,7 +2,7 @@ import argparse
 import albumentations as A
 import albumentations.pytorch.transforms as T
 import logging
-from auxiliary import CT, imread, imwrite
+from auxiliary import CT, imread, imwrite, logger
 from pathlib import Path
 import architecture
 import yaml
@@ -32,9 +32,6 @@ def cut_tiles(img, resolution):
     return tiles
 
 def resize_cut(img, resolution):
-    logger = logging.getLogger('drone_seg')
-    logger.addHandler(logging.StreamHandler())
-
     logger.debug(f'Received image with shape {img.shape}')
 
     initial_shape = img.shape
@@ -114,10 +111,6 @@ def _process(model, img_path, outdir):
     imwrite(out, outpath)
 
 def main(args):
-    logger = logging.getLogger('drone_seg')
-    logger.addHandler(logging.StreamHandler())
-    logger.setLevel(logging.INFO)
-
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
     args.outdir.mkdir(exist_ok=True)
