@@ -94,10 +94,13 @@ def train(model, cfg, dataset_name, dataset_path, outdir):
     vis_dir = outdir / 'vis'
     vis_dir.mkdir(exist_ok=True)
 
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optim, mode='min', patience=4)
+
     for epoch in tqdm(range(cfg['train']['epochs'] + 1)):
         train_loss = train_epoch(model, dataloader, optim, criterion)
         if epoch % 5 == 0:
             val_loss = val_epoch(model, dataloader, criterion, vis_dir)
+            scheduler.step(val_loss)
             logger.info(f'Validation loss {val_loss}')
             if val_loss < best_val:
                 best_val = val_loss
@@ -115,6 +118,7 @@ def main(args):
 
     model = architecture.get_model(cfg['model'])
     if args.input is not None:
+        logger.info('Loading model')
         model.load_state_dict(torch.load(args.input, map_location=device))
 
     model = model.to(device)
