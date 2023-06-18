@@ -104,7 +104,7 @@ def wheels(cfg, dataset_name, dataset_path):
         case 'focal':
             train_criterion = smp.losses.FocalLoss('multiclass')
 
-    val_index = tc.MulticlassJaccardIndex(cfg['model']['params']['classes'])
+    val_index = tc.MulticlassJaccardIndex(cfg['model']['params']['classes']).to(device)
     val_criterion = lambda a, b: 1 - val_index(a, b)
     logger.info(f'Val loss: Exact Jaccard loss')
 

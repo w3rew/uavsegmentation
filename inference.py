@@ -12,6 +12,8 @@ import torch.nn.functional as F
 import numpy as np
 import cv2
 
+device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+
 def cut_tiles(img, resolution):
     if (img.shape[0] % resolution[0] != 0 or
         img.shape[1] % resolution[1] != 0):
@@ -97,6 +99,8 @@ class ModelInferenceImg:
         transformed = self.transform(image=img)['image']
         batched = transformed[None, ...]
 
+        batched = batched.to(device)
+
         out = self.raw.inference(batched, classes=True)
 
         out_numpy = out.detach().cpu().numpy()
@@ -117,7 +121,6 @@ def _process(model, img_path, outdir):
     imwrite(out, outpath)
 
 def main(args):
-    device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
     args.outdir.mkdir(exist_ok=True)
     with open(args.config, 'r') as f:
@@ -125,6 +128,7 @@ def main(args):
     model = architecture.get_model(cfg['model'])
 
     model.load_state_dict(torch.load(args.model_weights, map_location=device))
+    model = model.to(device)
 
     model = ModelInferenceImg(model, cfg['model']['resolution_k'])
 
