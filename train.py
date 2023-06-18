@@ -10,7 +10,8 @@ import albumentations as A
 import logging
 import cv2
 import numpy as np
-import torchmetrics.classification as mc
+import torchmetrics.classification as tc
+import segmentation_models_pytorch as smp
 from auxiliary import show_augmentations, logger, CT, imwrite
 from inference import ModelInference
 
@@ -21,9 +22,8 @@ train_transform = A.Compose([A.HorizontalFlip(), A.GridDistortion(p=0.2),
 
 def val_epoch(inference_model, loader, criterion, *, vis_dir=None, progress=False):
     logger.info(f'Starting validation')
-    epoch_metric = 0.0
+    epoch_loss = 0.0
     c = 0
-    criterion = criterion.to(device)
     if progress:
         iter_ = tqdm(loader.val)
     else:
@@ -32,9 +32,9 @@ def val_epoch(inference_model, loader, criterion, *, vis_dir=None, progress=Fals
         for name, img, mask in iter_:
             img = img.to(device)
             mask = mask.to(device)
-            out = inference_model.inference(img, classes=True)
-            metric = criterion(out, mask)
-            epoch_metric += metric.detach().cpu().sum()
+            out = inference_model.inference(img, classes=False)
+            loss = criterion(out, mask[:, 0, ...])
+            epoch_loss += loss.detach().cpu().sum()
             c += img.shape[0]
 
             if vis_dir:
@@ -42,9 +42,9 @@ def val_epoch(inference_model, loader, criterion, *, vis_dir=None, progress=Fals
                 color = CT.inverse_transform(classes)
                 imwrite(color, vis_dir / name[0])
 
-        epoch_metric /= c
+        epoch_loss /= c
 
-    return epoch_metric
+    return epoch_loss
 
 
 def train_epoch(model, loader, optim, criterion):
@@ -74,13 +74,13 @@ def wheels(cfg, dataset_name, dataset_path):
 
     model = model.to(device)
 
-    inference_model = ModelInference(model,
-                                     cfg['model']['resolution_k'])
+    inference_model = ModelInference(model, cfg['model']['resolution_k'])
 
 
     match dataset_name:
         case 'uavid':
             dataset_cls = datasets.UAVidCropped
+            logger.info('UAVid dataset')
         case 'semanticdrone':
             dataset_cls = datasets.SemanticDrone
         case _:
@@ -91,9 +91,21 @@ def wheels(cfg, dataset_name, dataset_path):
                                        **cfg['dataset'][dataset_name])
     dataloader = datasets.LoaderTrainVal(dataset, **cfg['dataloader'])
 
-    train_criterion = nn.CrossEntropyLoss()
-    val_criterion = mc.MulticlassJaccardIndex(cfg['model']['params']['classes'],
-                                              validate_args=True)
+    logger.info(f'Train loss: {cfg["train"]["loss"]}')
+    match cfg['train']['loss']:
+        case 'cross_entropy':
+            train_criterion = nn.CrossEntropyLoss()
+        case 'jaccard':
+            train_criterion = smp.losses.JaccardLoss('multiclass')
+        case 'dice':
+            train_criterion = smp.losses.DiceLoss('multiclass')
+
+    val_index = tc.MulticlassJaccardIndex(cfg['model']['params']['classes'])
+    val_index.to(device)
+    val_criterion = lambda a, b: 1 - val_index(a, b)
+    logger.info(f'Val loss: Exact Jaccard loss')
+
+
     match cfg['train']['optim']['name']:
         case 'adam':
             optim_cls = torch.optim.Adam
@@ -110,22 +122,22 @@ def wheels(cfg, dataset_name, dataset_path):
 def train(model, inference_model, dataloader, train_criterion, val_criterion, optim, cfg, outdir):
     logger.info('Starting model training')
 
-    best_val = float('-inf')
+    best_val = float('+inf')
     best_state_dict = None
 
     vis_dir = outdir / 'vis'
     vis_dir.mkdir(exist_ok=True)
 
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optim, mode='max', patience=4)
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optim, mode='min', patience=4)
 
     for epoch in tqdm(range(cfg['epochs'] + 1)):
         train_loss = train_epoch(model, dataloader, optim, train_criterion)
         if epoch % 5 == 0:
-            val_metric = val_epoch(inference_model, dataloader, val_criterion, vis_dir=vis_dir)
-            scheduler.step(val_metric)
-            logger.info(f'Validation quality {val_metric}')
-            if val_metric > best_val:
-                best_val = val_metric
+            val_loss = val_epoch(inference_model, dataloader, val_criterion, vis_dir=vis_dir)
+            scheduler.step(val_loss)
+            logger.info(f'Validation loss {val_loss}')
+            if val_loss < best_val:
+                best_val = val_loss
                 torch.save(model.state_dict(), outdir / 'best.pth')
 
 
@@ -143,8 +155,8 @@ def main(args):
 
     if args.validate_only:
         logger.info('Validating the model')
-        val_metric = val_epoch(inference_model, dataloader, val_criterion, progress=True)
-        print(f'Validation quality is {val_metric}')
+        val_loss = val_epoch(inference_model, dataloader, val_criterion, progress=True)
+        print(f'Validation loss is {val_loss}')
         return
 
     outdir = args.output / args.model_name

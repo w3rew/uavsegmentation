@@ -13,7 +13,8 @@ from auxiliary import imread, logger
 class LoaderTrainVal:
     def __init__(self, dataset, **kwargs):
         self.train = DataLoader(dataset.train, **kwargs)
-        self.val = DataLoader(dataset.val, num_workers=kwargs['num_workers'], shuffle=False)
+        self.val = DataLoader(dataset.val, num_workers=kwargs['num_workers'],
+                              shuffle=False)
 
 def calculate_mean_std(imgs, progress=False):
     sums = np.zeros(3, dtype=np.float64)

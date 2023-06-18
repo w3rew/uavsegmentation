@@ -17,6 +17,7 @@ dataset:
     std: [60.41908526, 56.56012129, 60.92941576]
 train:
   epochs: 300
+  loss: 'jaccard'
   optim:
     name: 'adam'
     params:
