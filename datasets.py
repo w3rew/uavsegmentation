@@ -13,7 +13,7 @@ from auxiliary import imread, logger
 class LoaderTrainVal:
     def __init__(self, dataset, **kwargs):
         self.train = DataLoader(dataset.train, **kwargs)
-        self.val = DataLoader(dataset.val, batch_size=1, shuffle=False)
+        self.val = DataLoader(dataset.val, num_workers=kwargs['num_workers'], shuffle=False)
 
 def calculate_mean_std(imgs, progress=False):
     sums = np.zeros(3, dtype=np.float64)
@@ -40,7 +40,7 @@ def calculate_mean_std(imgs, progress=False):
 
 
 class DatasetTrainVal:
-    def __init__(self, dataset, dataset_path, transform=None, mean=None, std=None, **kwargs):
+    def __init__(self, dataset, dataset_path, transform=None, mean=None, std=None, shape=None, **kwargs):
         train_dir = dataset_path / dataset.TRAIN_DIR
         val_dir = dataset_path / dataset.VAL_DIR
         if mean is None or std is None:
@@ -49,8 +49,8 @@ class DatasetTrainVal:
             logger.info(f'Calculated {mean=}, {std=}')
         self.mean = mean
         self.std = std
-        self.train = dataset(train_dir, self.mean, self.std, transform, **kwargs)
-        self.val = dataset(val_dir, self.mean, self.std, transform=None, **kwargs)
+        self.train = dataset(train_dir, self.mean, self.std, transform, shape, **kwargs)
+        self.val = dataset(val_dir, self.mean, self.std, transform=None, shape=None, **kwargs)
 
 
 class UAVidCropped(Dataset):
@@ -84,7 +84,10 @@ class UAVidCropped(Dataset):
         self.mean = [i / 255 for i in mean]
         self.std = [i / 255 for i in std]
         self.shape = shape
-        self.transform = []
+        if self.shape is None:
+            self.transform = []
+        else:
+            self.transform = [A.RandomCrop(*self.shape)]
         if transform is not None:
             self.transform.append(transform)
         self.transform += [A.Normalize(self.mean, self.std), T.ToTensorV2()]
@@ -103,4 +106,4 @@ class UAVidCropped(Dataset):
         img, mask = tmp['image'], tmp['mask']
 
 
-        return file.name, img, mask[None, ...].long()
+        return f'{file.parent.parent.name}_{file.name}', img, mask[None, ...].long()

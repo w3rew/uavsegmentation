@@ -8,9 +8,9 @@ import architecture
 import yaml
 from tqdm import tqdm
 import torch
+import torch.nn.functional as F
 import numpy as np
 import cv2
-
 
 def cut_tiles(img, resolution):
     if (img.shape[0] % resolution[0] != 0 or
@@ -51,11 +51,33 @@ def resize_cut(img, resolution):
     return tiles
 
 class ModelInference:
-    def __init__(self, model, resolution, mean=None, std=None, preprocessing_fn=None):
+    def __init__(self, model, resolution_k):
         self.model = model
+        self.resolution_k = resolution_k
+        self.device = next(model.parameters()).device
+
+    def inference(self, img, classes=False):
         self.model.eval()
 
-        self.resolution = resolution
+        initial_shape = img.shape[-2:]
+
+        shape = (img.shape[-2] // self.resolution_k * self.resolution_k,
+                 img.shape[-1] // self.resolution_k * self.resolution_k)
+
+        with torch.no_grad():
+            resized = F.interpolate(img, shape)
+            out = self.model.forward(resized)
+            orig_size = F.interpolate(out, initial_shape, mode='nearest-exact')
+            if classes:
+                orig_size = torch.argmax(orig_size, dim=1, keepdims=True)
+
+        return orig_size
+
+
+class ModelInferenceImg:
+    def __init__(self, model, resolution_k, mean=None, std=None, preprocessing_fn=None):
+
+        self.raw = ModelInference(model, resolution_k)
         if mean and std:
             self.normalize = A.Normalize(mean=[i / 255 for i in mean],
                                      std=[i / 255 for i in std])
@@ -68,39 +90,23 @@ class ModelInference:
         self.transform.append(T.ToTensorV2())
         self.transform = A.Compose(self.transform)
 
-        self.device = next(model.parameters()).device
-
-    def _assemble_from_tiles(self, tiles):
-        return np.block(tiles)
-
-    def _inference(self, img):
-        preprocessed = self.transform(image=img)
-
-        preprocessed = preprocessed['image'].to(self.device)
-
-        with torch.no_grad():
-            out = self.model.forward(preprocessed[None, ...])
-            ans = torch.argmax(out, dim=1) # by channel
-            ans = ans.detach().cpu().numpy().squeeze()
-
-        return ans
-
     def inference(self, img, color=True):
         if not isinstance(img, np.ndarray):
             raise ValueError(f'img is of type {type(img)}, expected np.ndarray')
 
-        initial_shape = img.shape
+        transformed = self.transform(image=img)['image']
+        batched = transformed[None, ...]
 
-        tiles = resize_cut(img, self.resolution)
+        out = self.raw.inference(batched, classes=True)
 
-        mask_tiles = [[self._inference(tile) for tile in row] for row in tiles]
-        mask = self._assemble_from_tiles(mask_tiles)
+        out_numpy = out.detach().cpu().numpy()
+
+        mask = out_numpy[0, ...].transpose(1, 2, 0)
+
         if color:
-            mask = CT.inverse_transform(mask)
+            mask = CT.inverse_transform(mask[..., 0])
 
-        mask_original_size = cv2.resize(mask, (initial_shape[1], initial_shape[0]))
-
-        return mask_original_size
+        return mask
 
 def _process(model, img_path, outdir):
     img = imread(img_path)
@@ -120,7 +126,7 @@ def main(args):
 
     model.load_state_dict(torch.load(args.model_weights, map_location=device))
 
-    model = ModelInference(model, cfg['model']['shape'])
+    model = ModelInferenceImg(model, cfg['model']['resolution_k'])
 
     if args.image.is_file():
         logger.info(f'Processing file {args.image.name}')

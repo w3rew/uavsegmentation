@@ -1,5 +1,6 @@
 model:
   decoder: 'unet++'
+  resolution_k: 32
   params:
     encoder_name: 'resnet34'
     encoder_weights: 'imagenet'
@@ -15,7 +16,7 @@ dataset:
     mean: [121.74305257, 126.25519926, 115.68233945]
     std: [60.41908526, 56.56012129, 60.92941576]
 train:
-  epochs: 60
+  epochs: 300
   optim:
     name: 'adam'
     params:
