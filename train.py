@@ -99,9 +99,12 @@ def wheels(cfg, dataset_name, dataset_path):
             train_criterion = smp.losses.JaccardLoss('multiclass')
         case 'dice':
             train_criterion = smp.losses.DiceLoss('multiclass')
+        case 'lovasz':
+            train_criterion = smp.losses.LovaszLoss('multiclass')
+        case 'focal':
+            train_criterion = smp.losses.FocalLoss('multiclass')
 
     val_index = tc.MulticlassJaccardIndex(cfg['model']['params']['classes'])
-    val_index.to(device)
     val_criterion = lambda a, b: 1 - val_index(a, b)
     logger.info(f'Val loss: Exact Jaccard loss')
 
