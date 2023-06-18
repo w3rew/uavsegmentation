@@ -135,7 +135,7 @@ def train(model, inference_model, dataloader, train_criterion, val_criterion, op
         if epoch % 5 == 0:
             val_loss = val_epoch(inference_model, dataloader, val_criterion, vis_dir=vis_dir)
             scheduler.step(val_loss)
-            logger.info(f'Validation loss {val_loss}')
+            logger.info(f'Validation index {1 - val_loss}')
             if val_loss < best_val:
                 best_val = val_loss
                 torch.save(model.state_dict(), outdir / 'best.pth')
