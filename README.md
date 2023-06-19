@@ -4,7 +4,9 @@
 
 ## Датасет
 UAVid --- датасет для семантической сегментации, снятый с беспилотного летательного аппарата.
-![UAVid example] (https://uavid.nl/UAVid_files/imgs/UAVid_example.png)
+
+![UAVid example](https://uavid.nl/UAVid_files/imgs/UAVid_example.png)
+
 В нём 8 классов:
 
 1. Building
@@ -144,3 +146,10 @@ Inference практически на любом компьютере.
 
 ### Примеры работы
 
+![Example 1](examples/seq21/Labels/000000.png)
+
+![Example 2](examples/seq25/Labels/000000.png)
+
+![Example 3](examples/seq30/Labels/000700.png)
+
+![Example 4](examples/seq40/Labels/000600.png)
