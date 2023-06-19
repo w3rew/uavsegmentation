@@ -4,7 +4,7 @@
 
 ## Датасет
 UAVid --- датасет для семантической сегментации, снятый с беспилотного летательного аппарата.
-[UAVid example] (https://uavid.nl/UAVid_files/imgs/UAVid_example.png)
+![UAVid example] (https://uavid.nl/UAVid_files/imgs/UAVid_example.png)
 В нём 8 классов:
 
 1. Building
@@ -99,12 +99,16 @@ Inference практически на любом компьютере.
 Параметры остаются прежними, только добавляется флаг `--validate_only`, а `-o` и `--model_name` теперь не обязательны.
 
 ### Предобученные модели
-TODO
 В `models` находятся предобученные модели, которые можно использовать для предсказаний.
 Для этого предназначен скрипт `inference.py`.
 
 Список моделей:
-TODO
+
+|                                | Jaccard index on validation | Comment                                           |
+|--------------------------------|-----------------------------|---------------------------------------------------|
+| `resnet_crop_crossentropy.pth` |                       0.603 | Обучена на обрезанных изображениях с CrossEntropy |
+| `resnet_full_crossentropy.pth` |                       0.633 |     Обучена на полных изображениях с CrossEntropy |
+| `resnet_full_jaccard.pth`      |                       0.642 |  Обучена на обрезанных изображениях с JaccardLoss |
 
 ### Инференс
 Для инференса служит скрипт `inference.py`.
@@ -137,3 +141,6 @@ TODO
     3. Tree
     4. Low vegetation
     5. Background clutter
+
+### Примеры работы
+
